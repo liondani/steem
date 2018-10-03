@@ -1,52 +1,54 @@
-file(GLOB HEADERS "include/steemit/chain/*.hpp")
-
-add_custom_target( build_hardfork_hpp
-                   COMMAND cat-parts hardfork.d "${CMAKE_CURRENT_BINARY_DIR}/include/steemit/chain/hardfork.hpp" )
-set_source_files_properties( "${CMAKE_CURRENT_BINARY_DIR}/include/steemit/chain/hardfork.hpp" PROPERTIES GENERATED TRUE )
-
-add_dependencies( build_hardfork_hpp cat-parts )
+file(GLOB HEADERS "include/steem/chain/*.hpp" "include/steem/chain/util/*.hpp")
 
 ## SORT .cpp by most likely to change / break compile
-add_library( steemit_chain
+add_library( steem_chain
 
              # As database takes the longest to compile, start it first
              database.cpp
+
+             smt_evaluator.cpp
+             smt_objects/smt_market_maker.cpp
+             steem_evaluator.cpp
+             steem_objects.cpp
+
+             witness_schedule.cpp
              fork_database.cpp
 
-             protocol/types.cpp
-             protocol/authority.cpp
-             protocol/operations.cpp
-             protocol/steem_operations.cpp
-             protocol/transaction.cpp
-             protocol/block.cpp
-             protocol/asset.cpp
+             shared_authority.cpp
+             block_log.cpp
 
-             get_config.cpp
+             generic_custom_operation_interpreter.cpp
 
-             evaluator.cpp
-             steem_evaluator.cpp
-
-#             account_object.cpp
-             steem_objects.cpp
-             block_database.cpp
+             util/rd.cpp
+             util/reward.cpp
+             util/impacted.cpp
+             util/advanced_benchmark_dumper.cpp
 
              ${HEADERS}
-             "${CMAKE_CURRENT_BINARY_DIR}/include/steemit/chain/hardfork.hpp"
            )
 
-add_dependencies( steemit_chain build_hardfork_hpp )
-target_link_libraries( steemit_chain fc graphene_db ${PATCH_MERGE_LIB} )
-target_include_directories( steemit_chain
+target_link_libraries( steem_chain steem_jsonball steem_protocol fc chainbase steem_schema appbase
+                       ${PATCH_MERGE_LIB} )
+target_include_directories( steem_chain
+                            PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}"
                             PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include" "${CMAKE_CURRENT_BINARY_DIR}/include" )
 
+if( CLANG_TIDY_EXE )
+   set_target_properties(
+      steem_chain PROPERTIES
+      CXX_CLANG_TIDY "${DO_CLANG_TIDY}"
+   )
+endif( CLANG_TIDY_EXE )
+
 if(MSVC)
-  set_source_files_properties( database.cpp block_database.cpp PROPERTIES COMPILE_FLAGS "/bigobj" )
+  set_source_files_properties( database.cpp PROPERTIES COMPILE_FLAGS "/bigobj" )
 endif(MSVC)
 
 INSTALL( TARGETS
-   steemit_chain
+   steem_chain
 
    RUNTIME DESTINATION bin
    LIBRARY DESTINATION lib
    ARCHIVE DESTINATION lib
 )
+INSTALL( FILES ${HEADERS} DESTINATION "include/steem/chain" )
